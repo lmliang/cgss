@@ -10,6 +10,12 @@ import (
 
 var ipc.Server = &CenterServer{}
 
+type Message struct {
+	From string `json:"from"`
+	To string `json:"to"`
+	Content string `json:"content"`
+}
+
 type CenterServer struct {
 	servers map[string] ipc.Server
 	players []*Player
@@ -73,4 +79,72 @@ func (server *CenterServer) removePlayer(name string) error {
 		}
 	}
 	return errors.New("Player ", name, "not found.")
+}
+
+func (server *CenterServer) listPlayer() (players string, err error) {
+	server.mutex.RLock()
+	defer server.mutex.RUnlock()
+
+	if len(server.players) > 0 {
+		b, _= json.Marshal(server.players)
+		players = string(b)
+	} else {
+		err = errors.New("NO player online")
+	}
+
+	return
+}
+
+func (server *CenterServer) broadcast(params string) error {
+	var msg Message
+	err := json.Unmarshal([]byte(params), &msg)
+	if err != nil {
+		return err
+	}
+
+	server.mutex.Lock()
+	defer server.mutex.Unlock()
+
+	if len(server.players) > 0 {
+		for _, p := range server.players {
+			p.mq <- &msg
+		}
+	} else {
+		err = errors.New("NO player online.")
+	}
+	return err
+}
+
+func (server *CenterServer) handle(method, params string) *ipc.Response {
+	switch method {
+	case "addplayer":
+		err := server.addPlayer(params)
+		if err != nil {
+			return &ipc.Response{Code:err.Error()}
+		}
+	case "removeplayer":
+		err := server.removePlayer(params)
+		if err != nil {
+			return &ipc.Response{Code:err.Error()}
+		}
+	case "listplayer":
+		players, err := server.listPlayer()
+		if err != nil {
+			return &ipc.Response{Code:err.Error()}
+		}
+		return &ipc.Response{"200", players}
+	case "broadcast":
+		err := server.broadcast(params)
+		if err != nil {
+			return &ipc.Response{Code:err.Error()}
+		}
+		return &ipc.Response{Code:"200"}
+	default:
+		return &ipc.Response{Code:"404", Body:method + ":" + params}
+	}
+	return &ipc.Response{Code:"200"}
+}
+
+func (server *CenterServer) Name() string{
+	return "CenterServer"
 }
