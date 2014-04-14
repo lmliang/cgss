@@ -25,7 +25,7 @@ func (client *CenterClient) AddPlayer(player *Player) error {
 }
 
 func (client *CenterClient) RemovePlayer(name string) error {
-	resp := client.Call("removeplayer", name)
+	resp, _ := client.Call("removeplayer", name)
 	if resp.Code == "200" {
 		return nil
 	}
@@ -33,7 +33,7 @@ func (client *CenterClient) RemovePlayer(name string) error {
 }
 
 func (client *CenterClient) ListPlayer() (ps []*Player, err error) {
-	resp := client.Call("listplayer", "")
+	resp, _ := client.Call("listplayer", "")
 	if resp.Code != "200" {
 		err = errors.New(resp.Code)
 		return
@@ -44,7 +44,7 @@ func (client *CenterClient) ListPlayer() (ps []*Player, err error) {
 }
 
 func (client *CenterClient) Broadcast(message string) error {
-	var m = &Message{content: message}
+	var m = &Message{Content: message}
 
 	b, err := json.Marshal(m)
 	if err != nil {
